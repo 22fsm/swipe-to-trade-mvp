@@ -1,0 +1,36 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Listing {
+  id                 String     @id @default(uuid())
+  title              String
+  description        String
+  haveCategory       String
+  haveCondition      String
+  haveEstimatedValue Int?
+  haveImageUrl       String?
+  wantText           String
+  wantTags           String
+  location           String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  proposals          Proposal[]
+}
+
+model Proposal {
+  id              String   @id @default(uuid())
+  listing         Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId       String
+  proposerName    String
+  proposerContact String
+  offerText       String
+  createdAt       DateTime @default(now())
+}
