@@ -42,10 +42,10 @@ export default async function HomePage({ searchParams }: Props) {
       </Suspense>
 
       {listings.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+        <div className="rounded-2xl border border-gray-200/80 bg-white px-6 py-20 text-center shadow-sm">
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100">
             <svg
-              className="h-8 w-8 text-gray-400"
+              className="h-10 w-10 text-gray-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -58,10 +58,10 @@ export default async function HomePage({ searchParams }: Props) {
               />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-xl font-semibold text-gray-900">
             {search ? "No results found" : "No listings yet"}
           </h3>
-          <p className="mt-1 text-gray-500">
+          <p className="mt-2 text-gray-500 max-w-sm mx-auto">
             {search
               ? `No listings match "${search}". Try different keywords.`
               : "Be the first to post a trade!"}
@@ -69,14 +69,14 @@ export default async function HomePage({ searchParams }: Props) {
           {!search && (
             <Link
               href="/listings/new"
-              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+              className="mt-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-blue-500/25 transition-all hover:shadow-lg hover:shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700"
             >
               <svg
                 className="h-4 w-4"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
-                strokeWidth={2}
+                strokeWidth={2.5}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
