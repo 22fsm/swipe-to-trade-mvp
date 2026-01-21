@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ProposalForm } from "./ProposalForm";
 
@@ -203,7 +204,18 @@ export default async function ListingPage({ params }: Props) {
           </div>
         </div>
 
-        <ProposalForm listingId={listing.id} />
+        <ProposalForm listingId={listing.id} haveEstimatedValue={listing.haveEstimatedValue} />
+
+        {/* View Proposals Link */}
+        <Link
+          href={`/listings/${listing.id}/proposals`}
+          className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:border-gray-300"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+          </svg>
+          View Proposals
+        </Link>
       </div>
     </div>
   );

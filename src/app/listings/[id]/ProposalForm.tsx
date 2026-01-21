@@ -1,14 +1,38 @@
 "use client";
 
+import { useState } from "react";
 import { useActionState } from "react";
 import { createProposal } from "@/app/actions";
 
 type Props = {
   listingId: string;
+  haveEstimatedValue?: number | null;
 };
 
-export function ProposalForm({ listingId }: Props) {
+function parseValue(input: string): number | null {
+  if (!input || input.trim() === "") return null;
+  const parsed = parseFloat(input);
+  if (isNaN(parsed) || parsed < 0) return null;
+  return Math.round(parsed);
+}
+
+function computeCashAdd(
+  listingValue: number | null | undefined,
+  yourValue: number | null
+): { amount: number; direction: "you" | "they" | "even" } | null {
+  if (listingValue == null || yourValue == null) return null;
+  const diff = listingValue - yourValue;
+  if (diff === 0) return { amount: 0, direction: "even" };
+  if (diff > 0) return { amount: Math.round(diff), direction: "you" };
+  return { amount: Math.round(Math.abs(diff)), direction: "they" };
+}
+
+export function ProposalForm({ listingId, haveEstimatedValue }: Props) {
   const [state, formAction, isPending] = useActionState(createProposal, {});
+  const [yourItemValue, setYourItemValue] = useState<string>("");
+
+  const parsedYourValue = parseValue(yourItemValue);
+  const cashAddResult = computeCashAdd(haveEstimatedValue, parsedYourValue);
 
   if (state.success) {
     return (
@@ -82,6 +106,70 @@ export function ProposalForm({ listingId }: Props) {
             className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 text-gray-900 placeholder:text-gray-500 transition-colors focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             placeholder="john@example.com"
           />
+        </div>
+
+        {/* Cash-add helper - always visible */}
+        <div className="rounded-xl bg-gray-50 p-4 border border-gray-200">
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-3">
+            <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Cash-Add Helper
+          </div>
+
+          {haveEstimatedValue != null ? (
+            <p className="text-sm text-gray-600 mb-3">
+              This item is valued at <span className="font-medium text-gray-800">~${haveEstimatedValue}</span>.
+              Enter your item&apos;s value to estimate a fair cash add.
+            </p>
+          ) : (
+            <p className="text-sm text-gray-600 mb-3">
+              No estimated value provided by owner. Enter your item value to estimate a fair cash add.
+            </p>
+          )}
+
+          <div>
+            <label className="mb-2 block text-xs font-medium text-gray-700">
+              Your Item Value (optional)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+              <input
+                type="number"
+                value={yourItemValue}
+                onChange={(e) => setYourItemValue(e.target.value)}
+                min="0"
+                className="w-full rounded-lg border border-gray-300 bg-white pl-7 pr-4 py-2 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {/* Show result only when both values exist */}
+          {cashAddResult !== null && (
+            <div className="mt-3 flex items-center gap-2 rounded-lg bg-white p-3 border border-gray-200">
+              <svg className="h-4 w-4 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              <span className="text-sm text-gray-800">
+                {cashAddResult.direction === "even" && (
+                  <span className="font-medium text-emerald-700">Even trade (no cash add)</span>
+                )}
+                {cashAddResult.direction === "you" && (
+                  <>
+                    <span className="font-medium">You add:</span>{" "}
+                    <span className="font-semibold text-blue-700">${cashAddResult.amount}</span>
+                  </>
+                )}
+                {cashAddResult.direction === "they" && (
+                  <>
+                    <span className="font-medium">They add:</span>{" "}
+                    <span className="font-semibold text-emerald-700">${cashAddResult.amount}</span>
+                  </>
+                )}
+              </span>
+            </div>
+          )}
         </div>
 
         <div>

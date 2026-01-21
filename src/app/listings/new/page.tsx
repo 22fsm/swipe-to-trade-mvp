@@ -13,7 +13,7 @@ export default function NewListingPage() {
     <div className="mx-auto max-w-2xl">
       <div className="mb-10 text-center">
         <h1 className="text-3xl font-bold tracking-tight text-white">Post a Trade</h1>
-        <p className="mt-2 text-slate-200">Share what you have and what you're looking for.</p>
+        <p className="mt-2 text-slate-200">Share what you have and what you&apos;re looking for.</p>
       </div>
 
       <form action={formAction} className="space-y-8">
@@ -155,7 +155,7 @@ export default function NewListingPage() {
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900">What do you want?</h2>
-              <p className="text-sm text-gray-500">Tell others what you're looking for in exchange.</p>
+              <p className="text-sm text-gray-500">Tell others what you&apos;re looking for in exchange.</p>
             </div>
           </div>
 
