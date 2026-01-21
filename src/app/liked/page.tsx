@@ -2,46 +2,35 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Listing } from "@prisma/client";
-
-const LIKED_KEY = "swapspot_liked";
-
-function getLikedIds(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem(LIKED_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-}
-
-function removeLikedId(id: string) {
-  const ids = getLikedIds().filter((likedId) => likedId !== id);
-  localStorage.setItem(LIKED_KEY, JSON.stringify(ids));
-  return ids;
-}
+import { getLikedIds, saveLikedIds, clearLikedIds } from "@/lib/likes";
 
 export default function LikedPage() {
+  const router = useRouter();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [likedIds, setLikedIds] = useState<string[]>([]);
 
-  // Initialize client-side state after hydration
+  // Initialize client-side state after hydration and reconcile stale IDs
   useEffect(() => {
-    // Defer initial state update to avoid synchronous cascading renders
     requestAnimationFrame(() => {
-      const ids = getLikedIds();
-      setLikedIds(ids);
+      const rawIds = getLikedIds();
 
-      if (ids.length === 0) {
+      if (rawIds.length === 0) {
         setLoading(false);
         return;
       }
 
-      fetch(`/api/listings?ids=${ids.join(",")}`)
+      fetch(`/api/listings?ids=${rawIds.join(",")}`)
         .then((res) => res.json())
-        .then((data) => {
+        .then((data: Listing[]) => {
+          // Reconcile: only keep IDs that actually exist in DB
+          const validIds = data.map((l) => l.id);
+          if (validIds.length !== rawIds.length) {
+            saveLikedIds(validIds); // Clean up stale IDs
+          }
+          setLikedIds(validIds);
           setListings(data);
           setLoading(false);
         })
@@ -52,9 +41,15 @@ export default function LikedPage() {
   }, []);
 
   const handleRemove = (id: string) => {
-    const newIds = removeLikedId(id);
+    const newIds = likedIds.filter((likedId) => likedId !== id);
+    saveLikedIds(newIds);
     setLikedIds(newIds);
     setListings((prev) => prev.filter((listing) => listing.id !== id));
+  };
+
+  const handleClearAll = () => {
+    clearLikedIds();
+    router.push("/");
   };
 
   if (loading) {
@@ -79,15 +74,28 @@ export default function LikedPage() {
             <p className="text-sm text-gray-500">{likedIds.length} item{likedIds.length !== 1 ? "s" : ""} saved</p>
           </div>
         </div>
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Back to Swipe
-        </Link>
+        <div className="flex items-center gap-2">
+          {likedIds.length > 0 && (
+            <button
+              onClick={handleClearAll}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 shadow-sm transition-all hover:bg-red-50"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Clear likes
+            </button>
+          )}
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Swipe
+          </Link>
+        </div>
       </div>
 
       {listings.length === 0 ? (

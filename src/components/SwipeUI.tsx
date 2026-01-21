@@ -3,55 +3,26 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import type { Listing } from "@prisma/client";
+import { reconcileLikedIds, saveLikedIds } from "@/lib/likes";
 
 type Props = {
   listings: Listing[];
 };
-
-const LIKED_KEY = "swapspot_liked";
-
-/**
- * Safely read liked IDs from localStorage.
- * Returns empty array if not available or invalid.
- */
-function getLikedIds(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem(LIKED_KEY);
-    if (!stored) return [];
-    const parsed = JSON.parse(stored);
-    // Validate it's an array of strings
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((id): id is string => typeof id === "string");
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Save liked IDs to localStorage.
- */
-function saveLikedIds(ids: string[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(LIKED_KEY, JSON.stringify(ids));
-  } catch {
-    // Storage might be full or disabled
-  }
-}
 
 export function SwipeUI({ listings }: Props) {
   const [likedIds, setLikedIds] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isClient, setIsClient] = useState(false);
 
-  // Initialize client-side state after hydration
+  // Initialize client-side state after hydration and reconcile stale IDs
   useEffect(() => {
     requestAnimationFrame(() => {
-      setLikedIds(getLikedIds());
+      const currentListingIds = listings.map((l) => l.id);
+      const validLikedIds = reconcileLikedIds(currentListingIds);
+      setLikedIds(validLikedIds);
       setIsClient(true);
     });
-  }, []);
+  }, [listings]);
 
   // Filter out liked items from the swipe stack
   // This is the key fix: liked items are permanently excluded

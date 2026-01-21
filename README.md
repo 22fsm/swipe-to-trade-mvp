@@ -1,47 +1,37 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Database Setup
-
-This project uses Prisma with SQLite.
-
-### Run migrations
+## Getting Started (Fresh Clone)
 
 ```bash
+# 1. Install dependencies
+npm install
+
+# 2. Copy environment file
+cp .env.example .env
+
+# 3. Create database and run migrations
 npx prisma migrate dev
-```
 
-### Seed the database
-
-```bash
+# 4. Seed the database with sample data
 npm run db:seed
-```
 
-### Reset the database (development)
-
-```bash
-npx prisma migrate reset
-```
-
-This will drop the database, re-run all migrations, and re-seed the data.
-
-### View database (optional)
-
-```bash
-npx prisma studio
-```
-
-## Getting Started
-
-First, run the development server:
-
-```bash
+# 5. Start the development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser.
+
+## Database Commands
+
+```bash
+# Reset database (drops, migrates, and seeds)
+npm run db:reset
+
+# Seed database
+npm run db:seed
+
+# View database in browser
+npx prisma studio
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
