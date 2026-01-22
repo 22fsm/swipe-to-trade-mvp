@@ -1,49 +1,62 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import type { Listing } from "@prisma/client";
-import { reconcileLikedIds, saveLikedIds } from "@/lib/likes";
+import { ensureClientSession, fetchLikedIds, likeListing } from "@/lib/likes";
 
 type Props = {
   listings: Listing[];
 };
 
 export function SwipeUI({ listings }: Props) {
+  const [clientId, setClientId] = useState<string | null>(null);
   const [likedIds, setLikedIds] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isClient, setIsClient] = useState(false);
 
-  // Initialize client-side state after hydration and reconcile stale IDs
+  // Initialize client session and fetch likes from DB
   useEffect(() => {
-    requestAnimationFrame(() => {
-      const currentListingIds = listings.map((l) => l.id);
-      const validLikedIds = reconcileLikedIds(currentListingIds);
-      setLikedIds(validLikedIds);
+    let cancelled = false;
+
+    async function init() {
+      const id = await ensureClientSession();
+      if (cancelled) return;
+      setClientId(id);
+
+      const ids = await fetchLikedIds(id);
+      if (cancelled) return;
+      setLikedIds(ids);
       setIsClient(true);
-    });
-  }, [listings]);
+    }
+
+    init();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Filter out liked items from the swipe stack
-  // This is the key fix: liked items are permanently excluded
   const swipeableListings = useMemo(() => {
-    if (!isClient) return listings; // During SSR, show all
+    if (!isClient) return listings;
     return listings.filter((listing) => !likedIds.includes(listing.id));
   }, [listings, likedIds, isClient]);
 
-  const handleLike = () => {
-    if (currentIndex >= swipeableListings.length) return;
+  const handleLike = useCallback(async () => {
+    if (currentIndex >= swipeableListings.length || !clientId) return;
     const listingId = swipeableListings[currentIndex].id;
-    const newLikedIds = [...likedIds, listingId];
-    setLikedIds(newLikedIds);
-    saveLikedIds(newLikedIds);
-    // Note: we don't increment currentIndex here because the liked item
-    // will be filtered out, effectively advancing the stack automatically
-  };
 
-  const handlePass = () => {
+    // Optimistic update
+    setLikedIds((prev) => [...prev, listingId]);
+
+    // Persist to DB
+    await likeListing(clientId, listingId);
+  }, [currentIndex, swipeableListings, clientId]);
+
+  const handlePass = useCallback(() => {
     setCurrentIndex((prev) => prev + 1);
-  };
+  }, []);
 
   if (!isClient) {
     return (
@@ -141,7 +154,7 @@ export function SwipeUI({ listings }: Props) {
         <span>{remainingCount} remaining</span>
         {likedIds.length > 0 && (
           <>
-            <span className="text-gray-300">•</span>
+            <span className="text-gray-300">|</span>
             <Link href="/liked" className="flex items-center gap-1 text-pink-500 hover:text-pink-600 transition-colors">
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />

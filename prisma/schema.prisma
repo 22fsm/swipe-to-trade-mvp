@@ -23,6 +23,7 @@ model Listing {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
   proposals          Proposal[]
+  likes              Like[]
 }
 
 model Proposal {
@@ -33,4 +34,21 @@ model Proposal {
   proposerContact String
   offerText       String
   createdAt       DateTime @default(now())
+}
+
+model ClientSession {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  likes     Like[]
+}
+
+model Like {
+  id        String        @id @default(uuid())
+  client    ClientSession @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String
+  listing   Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId String
+  createdAt DateTime      @default(now())
+
+  @@unique([clientId, listingId])
 }

@@ -1,65 +1,134 @@
 /**
- * Shared helper for managing liked listing IDs in localStorage.
- * Single source of truth for likes across SwipeUI and /liked page.
+ * Client-side helpers for managing likes via the database API.
+ * Uses clientId stored in localStorage to identify the browser/device.
  */
 
-export const LIKED_KEY = "swapspot_liked";
+const CLIENT_ID_KEY = "swapspot_clientId";
 
 /**
- * Safely read liked IDs from localStorage.
- * Returns empty array if not available or invalid.
+ * Get the clientId from localStorage.
+ * Returns null if not set.
  */
-export function getLikedIds(): string[] {
-  if (typeof window === "undefined") return [];
+export function getClientId(): string | null {
+  if (typeof window === "undefined") return null;
   try {
-    const stored = localStorage.getItem(LIKED_KEY);
-    if (!stored) return [];
-    const parsed = JSON.parse(stored);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((id): id is string => typeof id === "string");
+    return localStorage.getItem(CLIENT_ID_KEY);
   } catch {
-    return [];
+    return null;
   }
 }
 
 /**
- * Save liked IDs to localStorage.
+ * Save the clientId to localStorage.
  */
-export function saveLikedIds(ids: string[]): void {
+export function saveClientId(clientId: string): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(LIKED_KEY, JSON.stringify(ids));
+    localStorage.setItem(CLIENT_ID_KEY, clientId);
   } catch {
     // Storage might be full or disabled
   }
 }
 
 /**
- * Clear all liked IDs from localStorage.
+ * Ensure a client session exists.
+ * If clientId is already in localStorage and valid, returns it.
+ * Otherwise creates a new session and stores it.
  */
-export function clearLikedIds(): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem(LIKED_KEY);
-  } catch {
-    // Ignore
+export async function ensureClientSession(): Promise<string> {
+  const existing = getClientId();
+
+  const res = await fetch("/api/client-session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientId: existing }),
+  });
+
+  // Defensive: check response status
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Client session API error: ${res.status} - ${text || "Unknown error"}`);
   }
+
+  // Defensive: check content-type
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Client session API returned non-JSON: ${contentType} - ${text.slice(0, 100)}`);
+  }
+
+  // Defensive: handle empty body
+  const text = await res.text();
+  if (!text) {
+    throw new Error("Client session API returned empty response");
+  }
+
+  let data: { clientId?: string };
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`Client session API returned invalid JSON: ${text.slice(0, 100)}`);
+  }
+
+  const clientId = data.clientId;
+  if (!clientId || typeof clientId !== "string") {
+    throw new Error("Client session API did not return a valid clientId");
+  }
+
+  // Save (or re-save) the clientId
+  saveClientId(clientId);
+
+  return clientId;
 }
 
 /**
- * Reconcile liked IDs against current listing IDs.
- * Removes stale IDs that no longer exist in the database.
- * Returns the valid liked IDs and updates localStorage if any were removed.
+ * Fetch liked listing IDs from the database for the given clientId.
  */
-export function reconcileLikedIds(currentListingIds: string[]): string[] {
-  const likedIds = getLikedIds();
-  const currentIdSet = new Set(currentListingIds);
-  const validLikedIds = likedIds.filter((id) => currentIdSet.has(id));
+export async function fetchLikedIds(clientId: string): Promise<string[]> {
+  const res = await fetch(`/api/likes?clientId=${encodeURIComponent(clientId)}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.likedIds || [];
+}
 
-  // If any stale IDs were removed, update storage
-  if (validLikedIds.length !== likedIds.length) {
-    saveLikedIds(validLikedIds);
-  }
+/**
+ * Like a listing.
+ */
+export async function likeListing(
+  clientId: string,
+  listingId: string
+): Promise<boolean> {
+  const res = await fetch("/api/likes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientId, listingId }),
+  });
+  return res.ok;
+}
 
-  return validLikedIds;
+/**
+ * Unlike a listing.
+ */
+export async function unlikeListing(
+  clientId: string,
+  listingId: string
+): Promise<boolean> {
+  const res = await fetch("/api/likes", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientId, listingId }),
+  });
+  return res.ok;
+}
+
+/**
+ * Clear all likes for a client.
+ */
+export async function clearAllLikes(clientId: string): Promise<boolean> {
+  const res = await fetch("/api/likes", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientId, clearAll: true }),
+  });
+  return res.ok;
 }

@@ -34,6 +34,20 @@ npm run db:seed
 npx prisma studio
 ```
 
+## Likes System
+
+Likes are stored in the database (SQLite via Prisma) instead of localStorage for durability.
+
+**How it works:**
+- Each browser/device gets a unique `clientId` stored in localStorage
+- When you like a listing, it's saved to the `Like` table in the database
+- Likes persist across page refreshes and are not affected by reseeding
+- If a liked listing is deleted (e.g., after reseed), it gracefully disappears from your liked list
+
+**Database models:**
+- `ClientSession`: Represents a browser/device session (id, createdAt)
+- `Like`: Stores likes with clientId and listingId (unique constraint prevents duplicates)
+
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.

@@ -4,51 +4,74 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Listing } from "@prisma/client";
-import { getLikedIds, saveLikedIds, clearLikedIds } from "@/lib/likes";
+import {
+  ensureClientSession,
+  fetchLikedIds,
+  unlikeListing,
+  clearAllLikes,
+} from "@/lib/likes";
 
 export default function LikedPage() {
   const router = useRouter();
+  const [clientId, setClientId] = useState<string | null>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [likedIds, setLikedIds] = useState<string[]>([]);
 
-  // Initialize client-side state after hydration and reconcile stale IDs
+  // Initialize client session and fetch likes from DB
   useEffect(() => {
-    requestAnimationFrame(() => {
-      const rawIds = getLikedIds();
+    let cancelled = false;
 
-      if (rawIds.length === 0) {
+    async function init() {
+      const id = await ensureClientSession();
+      if (cancelled) return;
+      setClientId(id);
+
+      const ids = await fetchLikedIds(id);
+      if (cancelled) return;
+
+      if (ids.length === 0) {
         setLoading(false);
         return;
       }
 
-      fetch(`/api/listings?ids=${rawIds.join(",")}`)
-        .then((res) => res.json())
-        .then((data: Listing[]) => {
-          // Reconcile: only keep IDs that actually exist in DB
-          const validIds = data.map((l) => l.id);
-          if (validIds.length !== rawIds.length) {
-            saveLikedIds(validIds); // Clean up stale IDs
-          }
-          setLikedIds(validIds);
-          setListings(data);
-          setLoading(false);
-        })
-        .catch(() => {
-          setLoading(false);
-        });
-    });
+      // Fetch listing details for liked IDs
+      const res = await fetch(`/api/listings?ids=${ids.join(",")}`);
+      if (cancelled) return;
+
+      const data: Listing[] = await res.json();
+      // Only show listings that still exist
+      const validListings = data.filter((l) => ids.includes(l.id));
+      setListings(validListings);
+      setLikedIds(validListings.map((l) => l.id));
+      setLoading(false);
+    }
+
+    init();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const handleRemove = (id: string) => {
-    const newIds = likedIds.filter((likedId) => likedId !== id);
-    saveLikedIds(newIds);
-    setLikedIds(newIds);
+  const handleRemove = async (id: string) => {
+    if (!clientId) return;
+
+    // Optimistic update
+    setLikedIds((prev) => prev.filter((likedId) => likedId !== id));
     setListings((prev) => prev.filter((listing) => listing.id !== id));
+
+    // Persist to DB
+    await unlikeListing(clientId, id);
   };
 
-  const handleClearAll = () => {
-    clearLikedIds();
+  const handleClearAll = async () => {
+    if (!clientId) return;
+
+    // Persist to DB
+    await clearAllLikes(clientId);
+
+    // Navigate away
     router.push("/");
   };
 

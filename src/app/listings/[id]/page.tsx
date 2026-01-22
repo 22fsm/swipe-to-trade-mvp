@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ProposalForm } from "./ProposalForm";
+import { SafeImage } from "@/components/SafeImage";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -23,13 +24,10 @@ export default async function ListingPage({ params }: Props) {
       <div className="lg:col-span-3">
         <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 shadow-sm">
           {listing.haveImageUrl ? (
-            <img
+            <SafeImage
               src={listing.haveImageUrl}
               alt={listing.title}
               className="h-full w-full object-cover"
-              onError={(e) => {
-                e.currentTarget.src = "https://placehold.co/600x400?text=No+Image";
-              }}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-gray-300">

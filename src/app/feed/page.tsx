@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ListingCard } from "@/components/ListingCard";
 import { Filters } from "@/components/Filters";
@@ -14,7 +15,7 @@ export default async function FeedPage({ searchParams }: Props) {
   const category = (params.category ?? "").toString() || undefined;
   const condition = (params.condition ?? "").toString() || undefined;
 
-  const whereClause: Parameters<typeof prisma.listing.findMany>[0]["where"] = {};
+  const whereClause: Prisma.ListingWhereInput = {};
 
   if (search) {
     whereClause.OR = [
